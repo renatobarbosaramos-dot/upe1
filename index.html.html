@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard ODS – UPE</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<style>
+:root {
+  --bg: #f0f4fa;
+  --surface: #ffffff;
+  --surface2: #e8eef7;
+  --border: rgba(28,60,120,0.12);
+  --text: #000000;
+  --muted: #5a6a8a;
+  --primary: #1c3c78;
+  --primary-rgb: 28,60,120;
+  --accent: #d2232a;
+  --radius: 12px;
+  --font: 'DM Sans', sans-serif;
+  --shadow: 0 4px 20px rgba(0,0,0,0.03);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; display: flex; flex-direction: column; gap: 24px; font-weight: 400; }
+header { background: var(--surface); padding: 18px 28px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; align-items: center; justify-content: space-between; position: relative; }
+.logo-container { display: flex; align-items: center; gap: 20px; }
+.logo-slot { width: 140px; height: 54px; border: 2px dashed #b0c2de; border-radius: 8px; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; background: #fafcfe; overflow: hidden; transition: all 0.2s ease; }
+.logo-slot:hover { border-color: var(--primary); background: #f0f5fc; }
+.logo-slot input[type="file"] { position: absolute; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2; }
+.logo-slot img { max-width: 100%; max-height: 100%; object-fit: contain; display: none; padding: 4px; }
+.logo-placeholder { font-size: 11px; color: var(--muted); font-weight: 500; text-align: center; line-height: 1.2; padding: 0 6px; pointer-events: none; }
+header h1 { font-size: 22px; font-weight: 700; color: var(--primary); letter-spacing: -0.5px; }
+.header-actions { display: flex; gap: 12px; }
+button { font-family: var(--font); font-weight: 600; font-size: 13px; padding: 10px 18px; border-radius: 8px; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s ease; }
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover { background: #132b57; transform: translateY(-1px); }
+.btn-accent { background: var(--accent); color: #fff; }
+.btn-accent:hover { background: #b01a20; transform: translateY(-1px); }
+.btn-secondary { background: var(--surface2); color: var(--primary); border: 1px solid rgba(28,60,120,0.1); }
+.btn-secondary:hover { background: #dce6f5; }
+.layout { display: grid; grid-template-columns: 300px 1fr; gap: 24px; align-items: start; }
+sidebar { background: var(--surface); padding: 24px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 20px; }
+.filter-group { display: flex; flex-direction: column; gap: 6px; }
+.filter-group label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+select { font-family: var(--font); font-size: 14px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: #fff; color: var(--text); outline: none; width: 100%; transition: border 0.2s; }
+select:focus { border-color: var(--primary); }
+main { display: flex; flex-direction: column; gap: 24px; }
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.stat-card { background: var(--surface); padding: 20px 24px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 4px; }
+.stat-card .label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-card .value { font-size: 28px; font-weight: 700; color: var(--primary); letter-spacing: -1px; }
+.charts-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.chart-card { background: var(--surface); padding: 24px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 16px; min-height: 340px; }
+.chart-card h3 { font-size: 15px; font-weight: 600; color: var(--primary); }
+.chart-wrapper { flex: 1; position: relative; width: 100%; height: 100%; min-height: 250px; }
+.map-card { background: var(--surface); padding: 24px; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 16px; }
+.map-card h3 { font-size: 15px; font-weight: 600; color: var(--primary); }
+#map { height: 400px; border-radius: 8px; z-index: 1; border: 1px solid var(--border); }
+.table-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); box-shadow: var(--shadow); display: flex; flex-direction: column; overflow: hidden; }
+.table-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.table-header h3 { font-size: 15px; font-weight: 600; color: var(--primary); }
+.table-wrapper { overflow-x: auto; max-height: 500px; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+th { background: #f8fafc; padding: 12px 18px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--border); text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; sticky-top: 0; position: sticky; top: 0; z-index: 2; }
+td { padding: 14px 18px; border-bottom: 1px solid var(--border); color: #333; max-width: 260px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+tr:hover td { background: #f8fafc; }
+.modal-backdrop { position: fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.4); display:none; items-center: center; justify-content: center; z-index: 999; backdrop-filter: blur(2px); }
+.modal { background: var(--surface); width: 640px; max-height: 85vh; border-radius: var(--radius); border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.1); display: flex; flex-direction: column; animation: modalIn 0.2s ease-out; }
+@keyframes modalIn { from { transform: scale(0.96); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-header h3 { font-size: 16px; font-weight: 600; color: var(--primary); }
+.modal-close { font-size: 20px; color: var(--muted); cursor: pointer; background: none; border: none; padding: 4px; }
+.modal-body { padding: 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 12px; background: #f8fafc; border-bottom-left-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group.full { grid-column: span 2; }
+.form-group label { font-size: 12px; font-weight: 600; color: var(--muted); }
+input[type="text"], input[type="number"], textarea { font-family: var(--font); font-size: 14px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); outline: none; width: 100%; transition: border 0.2s; }
+input[type="text"]:focus, input[type="number"]:focus, textarea:focus { border-color: var(--primary); }
+textarea { resize: vertical; min-height: 80px; }
+.import-toast { position: fixed; bottom: 24px; right: 24px; background: #1e293b; color: #fff; padding: 12px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; display: none; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.15); align-items: center; gap: 10px; animation: toastIn 0.2s ease; }
+@keyframes toastIn { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.ods-indicators { display: flex; flex-wrap: wrap; gap: 4px; }
+.ods-badge { width: 24px; height: 24px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; background: #ccc; cursor: pointer; position: relative; }
+.ods-badge.active { transform: scale(1.05); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.ods-badge:hover::after { content: attr(data-title); position: absolute; bottom: 28px; left: 50%; transform: translateX(-50%); background: #1e293b; color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 10px; white-space: nowrap; z-index: 99; font-weight: 400; }
+.view-btn { padding: 4px 8px; font-size: 11px; background: var(--surface2); color: var(--primary); border-radius: 4px; text-decoration: none; font-weight: 600; display: inline-block; }
+.view-btn:hover { background: #dce6f5; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-container">
+    <div class="logo-slot" id="logo-slot">
+      <input type="file" id="logo-input" accept="image/*" onchange="handleLogoUpload(e)">
+      <div class="logo-placeholder" id="logo-placeholder">Inserir Logo<br><span style="font-size:9px; font-weight:400; color:#8a9cb5;">Clique para alterar</span></div>
+      <img id="brand-logo" alt="Logo">
+    </div>
+    <h1>Dashboard ODS – UPE</h1>
+  </div>
+  <div class="header-actions">
+    <button class="btn-secondary" onclick="openModal('modal-manual')">Nova Iniciativa</button>
+    <button class="btn-primary" onclick="triggerImport()">Importar Excel</button>
+    <input type="file" id="excel-file" accept=".xlsx, .xls" style="display:none;" onchange="handleExcel(this)">
+  </div>
+</header>
+
+<div class="layout">
+  <sidebar>
+    <div class="filter-group">
+      <label>Unidade Acadêmica / Campus</label>
+      <select id="f-unidade" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-group">
+      <label>ODS Principal</label>
+      <select id="f-ods" onchange="aplicarFiltros()"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Tipo de Iniciativa</label>
+      <select id="f-tipo" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Pilar</label>
+      <select id="f-pilar" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Modalidade</label>
+      <select id="f-modalidade" onchange="aplicarFiltros()"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Público-Alvo</label>
+      <select id="f-publico" onchange="aplicarFiltros()"><option value="">Todos</option></select>
+    </div>
+    <button class="btn-secondary" style="width:100%; justify-content:center; margin-top:8px;" onclick="resetFilters()">Limpar Filtros</button>
+  </sidebar>
+
+  <main>
+    <div class="stats-grid">
+      <div class="stat-card"><span class="label">Total Iniciativas</span><span class="value" id="s-total">0</span></div>
+      <div class="stat-card"><span class="label">ODS Atendidas</span><span class="value" id="s-ods">0/17</span></div>
+      <div class="stat-card"><span class="label">Campi Atendidos</span><span class="value" id="s-campi">0</span></div>
+      <div class="stat-card"><span class="label">Pessoas Impactadas</span><span class="value" id="s-impacto">0</span></div>
+    </div>
+
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3>Distribuição por ODS Principal</h3>
+        <div class="chart-wrapper"><canvas id="c-ods"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <h3>Iniciativas por Tipo</h3>
+        <div class="chart-wrapper"><canvas id="c-tipo"></canvas></div>
+      </div>
+    </div>
+
+    <div class="map-card">
+      <h3>Mapeamento Geográfico dos Campi</h3>
+      <div id="map"></div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-header">
+        <h3>Lista de Iniciativas Cadastradas</h3>
+        <button class="btn-accent" style="padding:6px 12px; font-size:12px;" onclick="deleteSelected()">Excluir Selecionados</button>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40px;"><input type="checkbox" id="check-all" onclick="toggleAllChecks(this)"></th>
+              <th>Título</th>
+              <th>Unidade/Campus</th>
+              <th>ODS Princ.</th>
+              <th>Tipo</th>
+              <th>Pessoas Imp.</th>
+              <th style="width:60px;">Ação</th>
+            </tr>
+          </thead>
+          <tbody id="proj-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modal-manual">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Cadastrar Nova Iniciativa</h3>
+      <button class="modal-close" onclick="closeModal('modal-manual')">&times;</button>
+    </div>
+    <form id="form-manual" onsubmit="saveManual(event)">
+      <div class="modal-body">
+        <div class="form-group full">
+          <label>Título da Iniciativa *</label>
+          <input type="text" id="m-titulo" required>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Unidade Acadêmica / Campus *</label>
+            <input type="text" id="m-unidade" placeholder="Ex: FCM, Poli, Caruaru" required>
+          </div>
+          <div class="form-group">
+            <label>Tipo de Iniciativa *</label>
+            <input type="text" id="m-tipo" placeholder="Ex: Projeto de Extensão, Pesquisa" required>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>ODS Principal (1 a 17) *</label>
+            <input type="number" id="m-ods-princ" min="1" max="17" required>
+          </div>
+          <div class="form-group">
+            <label>Pessoas Impactadas (Estimativa)</label>
+            <input type="number" id="m-impacto" min="0" value="0">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Pilar</label>
+            <input type="text" id="m-pilar" placeholder="Ex: Ensino, Pesquisa, Extensão">
+          </div>
+          <div class="form-group">
+            <label>Modalidade</label>
+            <input type="text" id="m-modalidade" placeholder="Ex: Presencial, Remoto">
+          </div>
+        </div>
+        <div class="form-group full">
+          <label>Público-Alvo</label>
+          <input type="text" id="m-publico" placeholder="Ex: Comunidade Externa, Estudantes">
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Latitude (Opcional)</label>
+            <input type="text" id="m-lat" placeholder="Ex: -8.0522">
+          </div>
+          <div class="form-group">
+            <label>Longitude (Opcional)</label>
+            <input type="text" id="m-lng" placeholder="Ex: -34.8856">
+          </div>
+        </div>
+        <div class="form-group full">
+          <label>Descrição Opcional / Detalhes</label>
+          <textarea id="m-descricao"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" onclick="closeModal('modal-manual')">Cancelar</button>
+        <button type="submit" class="btn-primary">Salvar Iniciativa</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-view">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="v-titulo">Título da Iniciativa</h3>
+      <button class="modal-close" onclick="closeModal('modal-view')">&times;</button>
+    </div>
+    <div class="modal-body" style="gap:12px; font-size:14px;">
+      <div><strong>Unidade / Campus:</strong> <span id="v-unidade"></span></div>
+      <div><strong>Tipo:</strong> <span id="v-tipo"></span></div>
+      <div><strong>Pilar:</strong> <span id="v-pilar"></span></div>
+      <div><strong>Modalidade:</strong> <span id="v-modalidade"></span></div>
+      <div><strong>Público-Alvo:</strong> <span id="v-publico"></span></div>
+      <div><strong>Pessoas Impactadas:</strong> <span id="v-impacto"></span></div>
+      <div><strong>ODS Associadas:</strong> <div class="ods-indicators" id="v-ods-list" style="margin-top:6px;"></div></div>
+      <div style="margin-top:10px; border-top:1px solid var(--border); padding-top:12px;">
+        <strong>Descrição:</strong>
+        <p id="v-descricao" style="color:#444; margin-top:6px; line-height:1.5; white-space:pre-wrap;"></p>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="closeModal('modal-view')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="import-toast" id="toast"><span id="toast-txt">Mensagem</span></div>
+
+<script id="data-inject" type="application/json">
+[{"titulo":"Projeto Rondon Regional","unidade":"Reitoria","ods_principal":3,"tipo":"Extensão","pilar":"Extensão","modalidade":"Presencial","publico_alvo":"Comunidade Vulnerável","pessoas_impactadas":1500,"lat":-8.0524,"lng":-34.8851,"descricao":"Ação integrada de estudantes em municípios do interior."}]
+</script>
+
+<script>
+// =================================================================
+// CONFIGURAÇÃO DO FIREBASE REALTIME DATABASE (COMPAT)
+// =================================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyAziA5moMaL683b0lLPK3p5uteLOHyZWeQ",
+  authDomain: "upe1-c1e50.firebaseapp.com",
+  databaseURL: "https://upe1-c1e50-default-rtdb.firebaseio.com",
+  projectId: "upe1-c1e50",
+  storageBucket: "upe1-c1e50.firebasestorage.app",
+  messagingSenderId: "106378541403",
+  appId: "1:106378541403:web:f199166371a4d80172427e"
+};
+
+// Inicialização Global
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const dataRef = db.ref('iniciativas');
+const logoRef = db.ref('configuracoes/logomarca');
+
+// ATENÇÃO: Mudamos de const para LET para permitir modificações em tempo de execução
+let DATA = [];
+
+const ODS_IMAGES = {
+  1: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods01.png",
+  2: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods02.png",
+  3: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods03.png",
+  4: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods04.png",
+  5: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods05.png",
+  6: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods06.png",
+  7: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods07.png",
+  8: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods08.png",
+  9: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods09.png",
+  10: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods10.png",
+  11: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods11.png",
+  12: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods12.png",
+  13: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods13.png",
+  14: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods14.png",
+  15: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods15.png",
+  16: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods16.png",
+  17: "https://raw.githubusercontent.com/un-ods/ods-images/main/pt/ods17.png"
+};
+
+const ODS_NAMES = {
+  1:"Erradicação da Pobreza",2:"Fome Zero e Agricultura Sustentável",3:"Saúde e Bem-Estar",4:"Educação de Qualidade",
+  5:"Igualdade de Gênero",6:"Água Potável e Saneamento",7:"Energia Limpa e Acessível",8:"Trabalho Decente e Crescimento Econômico",
+  9:"Indústria, Inovação e Infraestrutura",10:"Redução das Desigualdades",11:"Cidades e Comunidades Sustentáveis",
+  12:"Consumo e Produção Responsáveis",13:"Ação Contra a Mudança Global do Clima",14:"Vida na Água",15:"Vida Terrestre",
+  16:"Paz, Justiça e Instituições Eficazes",17:"Parcerias e Meios de Implementação"
+};
+
+const ODS_COLORS = {
+  1:"#e5243b",2:"#dda63a",3:"#4c9f38",4:"#c7162c",5:"#ff3a21",6:"#26bde2",7:"#fcc30b",8:"#a21942",
+  9:"#fd6925",10:"#dd1367",11:"#fd9d24",12:"#bf8b2e",13:"#3f7e44",14:"#0a97d9",15:"#56c02b",16:"#00689d",17:"#19486a"
+};
+
+let map, markerGroup;
+let chartOds, chartTipo;
+
+function initMap(){
+  map = L.map('map').setView([-8.45, -36.5], 7);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO'
+  }).addTo(map);
+  markerGroup = L.layerGroup().addTo(map);
+}
+
+function showImportMsg(txt, isSuccess=true){
+  const t = document.getElementById('toast');
+  t.style.background = isSuccess ? "#10b981" : "#ef4444";
+  document.getElementById('toast-txt').innerText = txt;
+  t.style.display = "flex";
+  setTimeout(()=> t.style.display="none", 3500);
+}
+
+function openModal(id){ document.getElementById(id).style.display = "flex"; }
+function closeModal(id){ document.getElementById(id).style.display = "none"; }
+
+function triggerImport(){ document.getElementById('excel-file').click(); }
+
+function handleExcel(input){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet);
+      
+      let added = 0;
+      rows.forEach((r, idx) => {
+        let title = r["Título"] || r["titulo"] || r["Nome"] || r["nome"];
+        if(!title) return;
+        let odsP = parseInt(r["ODS Principal"] || r["ods_principal"] || r["ODS"] || r["ods"], 10);
+        if(isNaN(odsP) || odsP < 1 || odsP > 17) odsP = 3;
+        
+        let imp = parseInt(r["Pessoas Impactadas"] || r["pessoas_impactadas"] || r["Impacto"] || 0, 10);
+        if(isNaN(imp)) imp = 0;
+        
+        let lat = parseFloat(r["Latitude"] || r["latitude"] || r["lat"]);
+        let lng = parseFloat(r["Longitude"] || r["longitude"] || r["lng"]);
+        
+        let newItem = {
+          _id: Date.now() + idx,
+          titulo: title,
+          unidade: r["Unidade"] || r["unidade"] || r["Campus"] || r["campus"] || "Não Informado",
+          ods_principal: odsP,
+          tipo: r["Tipo"] || r["tipo"] || "Outros",
+          pilar: r["Pilar"] || r["pilar"] || "",
+          modalidade: r["Modalidade"] || r["modalidade"] || "",
+          publico_alvo: r["Público-Alvo"] || r["publico_alvo"] || "",
+          pessoas_impactadas: imp,
+          lat: isNaN(lat) ? null : lat,
+          lng: isNaN(lng) ? null : lng,
+          descricao: r["Descrição"] || r["descricao"] || ""
+        };
+        DATA.unshift(newItem);
+        added++;
+      });
+      
+      input.value = '';
+      afterDataChange();
+      showImportMsg(`Sucesso! ${added} iniciativas importadas do Excel.`, true);
+    } catch(err) {
+      console.error(err);
+      showImportMsg('Erro ao processar planilha. Verifique as colunas.', false);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+// SALVA FORMULÁRIO MANUAL COM COMPORTAMENTO CORRIGIDO
+function saveManual(e){
+  e.preventDefault();
+  let odsP = parseInt(document.getElementById('m-ods-princ').value, 10);
+  if(isNaN(odsP) || odsP < 1 || odsP > 17) odsP = 3;
+  
+  let lat = parseFloat(document.getElementById('m-lat').value);
+  let lng = parseFloat(document.getElementById('m-lng').value);
+  
+  let newItem = {
+    _id: Date.now(),
+    titulo: document.getElementById('m-titulo').value,
+    unidade: document.getElementById('m-unidade').value || "Não Informado",
+    ods_principal: odsP,
+    tipo: document.getElementById('m-tipo').value || "Outros",
+    pilar: document.getElementById('m-pilar').value || "",
+    modalidade: document.getElementById('m-modalidade').value || "",
+    publico_alvo: document.getElementById('m-publico').value || "",
+    pessoas_impactadas: parseInt(document.getElementById('m-impacto').value, 10) || 0,
+    lat: isNaN(lat) ? null : lat,
+    lng: isNaN(lng) ? null : lng,
+    descricao: document.getElementById('m-descricao').value || ""
+  };
+  
+  DATA.unshift(newItem);
+  document.getElementById('form-manual').reset();
+  closeModal('modal-manual');
+  
+  // Roda e sincroniza na nuvem imediatamente
+  afterDataChange();
+  showImportMsg('Iniciativa cadastrada manualmente com sucesso!', true);
+}
+
+function viewItem(id){
+  const item = DATA.find(d => d._id === id);
+  if(!item) return;
+  document.getElementById('v-titulo').innerText = item.titulo;
+  document.getElementById('v-unidade').innerText = item.unidade;
+  document.getElementById('v-tipo').innerText = item.tipo;
+  document.getElementById('v-pilar').innerText = item.pilar || "Não informado";
+  document.getElementById('v-modalidade').innerText = item.modalidade || "Não informada";
+  document.getElementById('v-publico').innerText = item.publico_alvo || "Não informado";
+  document.getElementById('v-impacto').innerText = item.pessoas_impactadas.toLocaleString('pt-BR');
+  document.getElementById('v-descricao').innerText = item.descricao || "Nenhuma descrição fornecida.";
+  
+  const badg = document.getElementById('v-ods-list');
+  badg.innerHTML = `<span class="ods-badge active" style="background:${ODS_COLORS[item.ods_principal]}" data-title="ODS ${item.ods_principal} - ${ODS_NAMES[item.ods_principal]}">${item.ods_principal}</span>`;
+  
+  openModal('modal-view');
+}
+
+function toggleAllChecks(master){
+  const boxes = document.querySelectorAll('#proj-tbody .row-check');
+  boxes.forEach(b => b.checked = master.checked);
+}
+
+function deleteSelected(){
+  const ids = [...document.querySelectorAll('#proj-tbody .row-check:checked')].map(cb => parseInt(cb.value,10));
+  if(!ids.length){ showImportMsg('Selecione pelo menos uma iniciativa para excluir.', false); return; }
+  if(!confirm(`Excluir ${ids.length} iniciativa(s) selecionada(s)? Esta ação não pode ser desfeita.`)) return;
+  const idSet = new Set(ids);
+  DATA = DATA.filter(d => !idSet.has(d._id));
+  const master = document.getElementById('check-all');
+  if(master) master.checked = false;
+  
+  afterDataChange();
+  showImportMsg(`${ids.length} iniciativa(s) excluída(s).`, true);
+}
+
+// CORREÇÃO DA LOGOMARCA - FIXA NA TELA E NO BANCO DE DADOS ONLINE
+function handleLogoUpload(e){
+  const file = e && e.target && e.target.files && e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    const base64Str = reader.result;
+    
+    // Atualiza o DOM imediatamente
+    const img = document.getElementById('brand-logo');
+    img.src = base64Str;
+    img.style.display = 'block';
+    const ph = document.getElementById('logo-placeholder');
+    if(ph) ph.style.display = 'none';
+    const slot = document.getElementById('logo-slot');
+    if(slot) slot.style.borderStyle = 'solid';
+    
+    // Salva na raiz dedicada de configurações do Firebase
+    logoRef.set(base64Str)
+      .then(() => console.log("Logo salva e atualizada com sucesso no Firebase!"))
+      .catch(err => console.error("Erro ao enviar imagem online: ", err));
+  };
+  reader.readAsDataURL(file);
+  if(e && e.target) e.target.value = '';
+}
+
+// ATUALIZAÇÃO CENTRALIZADA (afterDataChange) - AGORA ESCREVE ONLINE NO FIREBASE
+function afterDataChange(){
+  populateFilters();
+  aplicarFiltros();
+  
+  // Salva toda a matriz de dados na nuvem a cada inclusão, edição ou exclusão
+  dataRef.set(DATA)
+    .then(() => console.log("Dados sincronizados no Realtime Database!"))
+    .catch((error) => {
+      console.error("Falha ao salvar dados remotamente: ", error);
+    });
+}
+
+function populateFilters(){
+  const uSel = document.getElementById('f-unidade');
+  const oSel = document.getElementById('f-ods');
+  const tSel = document.getElementById('f-tipo');
+  const pSel = document.getElementById('f-pilar');
+  const mSel = document.getElementById('f-modalidade');
+  const pbSel = document.getElementById('f-publico');
+  
+  const uVal = uSel.value;
+  const oVal = oSel.value;
+  const tVal = tSel.value;
+  const pVal = pSel.value;
+  const mVal = mSel.value;
+  const pbVal = pbSel.value;
+  
+  const unidades = new Set(), odss = new Set(), tipos = new Set(), pilares = new Set(), modalidades = new Set(), publicos = new Set();
+  
+  DATA.forEach(d => {
+    if(d.unidade) unidades.add(d.unidade);
+    if(d.ods_principal) odss.add(d.ods_principal);
+    if(d.tipo) tipos.add(d.tipo);
+    if(d.pilar) pilares.add(d.pilar);
+    if(d.modalidade) modalidades.add(d.modalidade);
+    if(d.publico_alvo) publicos.add(d.publico_alvo);
+  });
+  
+  buildOptions(uSel, unidades, "Todos", uVal);
+  buildOptions(oSel, Array.from(odss).sort((a,b)=>a-b), "Todas", oVal, true);
+  buildOptions(tSel, tipos, "Todos", tVal);
+  buildOptions(pSel, pilares, "Todos", pVal);
+  buildOptions(mSel, modalidades, "Todas", mVal);
+  buildOptions(pbSel, publicos, "Todos", pbVal);
+}
+
+function buildOptions(select, setOrArray, labelTodos, currentVal, isOds=false){
+  select.innerHTML = `<option value="">${labelTodos}</option>`;
+  const items = Array.from(setOrArray);
+  items.forEach(i => {
+    if(!i) return;
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.innerText = isOds ? `ODS ${i} - ${ODS_NAMES[i] || ''}` : i;
+    if(String(i) === String(currentVal)) opt.selected = true;
+    select.appendChild(opt);
+  });
+}
+
+function resetFilters(){
+  document.getElementById('f-unidade').value = "";
+  document.getElementById('f-ods').value = "";
+  document.getElementById('f-tipo').value = "";
+  document.getElementById('f-pilar').value = "";
+  document.getElementById('f-modalidade').value = "";
+  document.getElementById('f-publico').value = "";
+  aplicarFiltros();
+}
+
+function aplicarFiltros(){
+  const fUnidade = document.getElementById('f-unidade').value;
+  const fOds = document.getElementById('f-ods').value;
+  const fTipo = document.getElementById('f-tipo').value;
+  const fPilar = document.getElementById('f-pilar').value;
+  const fModalidade = document.getElementById('f-modalidade').value;
+  const fPublico = document.getElementById('f-publico').value;
+  
+  const filtered = DATA.filter(d => {
+    if(fUnidade && d.unidade !== fUnidade) return false;
+    if(fOds && String(d.ods_principal) !== String(fOds)) return false;
+    if(fTipo && d.tipo !== fTipo) return false;
+    if(fPilar && d.pilar !== fPilar) return false;
+    if(fModalidade && d.modalidade !== fModalidade) return false;
+    if(fPublico && d.publico_alvo !== fPublico) return false;
+    return true;
+  });
+  
+  renderStats(filtered);
+  renderTable(filtered);
+  renderCharts(filtered);
+  renderMap(filtered);
+}
+
+function renderStats(list){
+  document.getElementById('s-total').innerText = list.length;
+  const distinctOds = new Set(list.map(d => d.ods_principal).filter(Boolean));
+  document.getElementById('s-ods').innerText = `${distinctOds.size}/17`;
+  const distinctCampi = new Set(list.map(d => d.unidade).filter(Boolean));
+  document.getElementById('s-campi').innerText = distinctCampi.size;
+  const totalImp = list.reduce((acc, d) => acc + (d.pessoas_impactadas || 0), 0);
+  document.getElementById('s-impacto').innerText = totalImp.toLocaleString('pt-BR');
+}
+
+function renderTable(list){
+  const tbody = document.getElementById('proj-tbody');
+  tbody.innerHTML = "";
+  list.forEach(d => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="checkbox" class="row-check" value="${d._id}"></td>
+      <td style="font-weight:500; color:var(--primary);" title="${d.titulo}">${d.titulo}</td>
+      <td title="${d.unidade}">${d.unidade}</td>
+      <td><span class="ods-badge active" style="background:${ODS_COLORS[d.ods_principal]}" data-title="ODS ${d.ods_principal} - ${ODS_NAMES[d.ods_principal]}">${d.ods_principal}</span></td>
+      <td>${d.tipo}</td>
+      <td>${(d.pessoas_impactadas || 0).toLocaleString('pt-BR')}</td>
+      <td><a href="#" class="view-btn" onclick="viewItem(${d._id}); return false;">Ver</a></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderCharts(list){
+  const odsCount = {};
+  for(let i=1; i<=17; i++) odsCount[i] = 0;
+  list.forEach(d => { if(d.ods_principal) odsCount[d.ods_principal]++; });
+  
+  const odsLabels = [], odsData = [], odsBg = [];
+  for(let i=1; i<=17; i++){
+    if(odsCount[i] > 0){
+      odsLabels.push(`ODS ${i}`);
+      odsData.push(odsCount[i]);
+      odsBg.push(ODS_COLORS[i]);
+    }
+  }
+  
+  if(chartOds) chartOds.destroy();
+  const ctxOds = document.getElementById('c-ods').getContext('2d');
+  chartOds = new Chart(ctxOds, {
+    type: 'bar',
+    data: {
+      labels: odsLabels,
+      datasets: [{ data: odsData, backgroundColor: odsBg, borderRadius: 4 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+  });
+  
+  const tipoCount = {};
+  list.forEach(d => { if(d.tipo) tipoCount[d.tipo] = (tipoCount[d.tipo] || 0) + 1; });
+  const tipoLabels = Object.keys(tipoCount);
+  const tipoData = Object.values(tipoCount);
+  
+  if(chartTipo) chartTipo.destroy();
+  const ctxTipo = document.getElementById('c-tipo').getContext('2d');
+  chartTipo = new Chart(ctxTipo, {
+    type: 'doughnut',
+    data: {
+      labels: tipoLabels,
+      datasets: [{
+        data: tipoData,
+        backgroundColor: ['#1c3c78','#d2232a','#dda63a','#4c9f38','#26bde2','#a21942','#fd6925']
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+    }
+  });
+}
+
+function renderMap(list){
+  if(!markerGroup) return;
+  markerGroup.clearLayers();
+  
+  const uGeo = {};
+  list.forEach(d => {
+    if(d.lat && d.lng){
+      if(!uGeo[d.unidade]){ uGeo[d.unidade] = { lat: d.lat, lng: d.lng, count: 0, items: [] }; }
+      uGeo[d.unidade].count++;
+      uGeo[d.unidade].items.push(d.titulo);
+    }
+  });
+  
+  Object.keys(uGeo).forEach(name => {
+    const g = uGeo[name];
+    const marker = L.marker([g.lat, g.lng]);
+    let popTxt = `<div style="font-family:'DM Sans'; font-size:12px;"><strong>${name}</strong><br>${g.count} iniciativa(s)<br><ol style="margin-top:4px; padding-left:14px; max-height:80px; overflow-y:auto;">`;
+    g.items.slice(0,5).forEach(title => { popTxt += `<li>${title}</li>`; });
+    if(g.items.length > 5) popTxt += `<li>... e mais ${g.items.length - 5}</li>`;
+    popTxt += `</ol></div>`;
+    marker.bindPopup(popTxt);
+    markerGroup.addLayer(marker);
+  });
+}
+
+// =================================================================
+// PASSO 5: INICIALIZAR E PARSEAR PARALELAMENTE DA NUVEM
+// =================================================================
+function carregarBancoDoFirebase() {
+  console.log("Conectando ao Firebase para baixar dados e imagens...");
+  
+  // Promessa 1: Sincronizar as iniciativas salvaguardadas
+  const pIniciativas = dataRef.once('value').then((snapshot) => {
+    const valOnline = snapshot.val();
+    if(valOnline){
+      DATA = Array.isArray(valOnline) ? valOnline : Object.values(valOnline);
+      console.log("Lista de iniciativas carregada da nuvem.");
+    } else {
+      console.log("Banco remoto vazio. Espelhando base local padrão...");
+      // Se a nuvem estiver limpa, lê o JSON padrão do HTML e cria na nuvem
+      let backupStr = document.getElementById('data-inject').textContent.trim();
+      if(backupStr){
+        try{ DATA = JSON.parse(backupStr); }catch(e){ DATA = []; }
+      }
+      dataRef.set(DATA);
+    }
+  });
+
+  // Promessa 2: Sincronizar e fixar a imagem da Logo salva
+  const pLogomarca = logoRef.once('value').then((snapshot) => {
+    const b64Logo = snapshot.val();
+    if(b64Logo){
+      const img = document.getElementById('brand-logo');
+      img.src = b64Logo;
+      img.style.display = 'block';
+      const ph = document.getElementById('logo-placeholder');
+      if(ph) ph.style.display = 'none';
+      const slot = document.getElementById('logo-slot');
+      if(slot) slot.style.borderStyle = 'solid';
+      console.log("Logomarca recuperada da nuvem.");
+    }
+  });
+
+  // Aguarda as duas requisições terminarem para pintar a tela
+  Promise.all([pIniciativas, pLogomarca]).then(() => {
+    populateFilters();
+    aplicarFiltros();
+    console.log("Dashboard totalmente funcional e conectado à nuvem!");
+  }).catch(err => {
+    console.error("Falha na inicialização online. Iniciando localmente: ", err);
+    let backupStr = document.getElementById('data-inject').textContent.trim();
+    if(backupStr) { try{ DATA = JSON.parse(backupStr); }catch(e){} }
+    populateFilters();
+    aplicarFiltros();
+  });
+}
+
+// Evento disparador único assim que o navegador monta o HTML
+document.addEventListener("DOMContentLoaded", () => {
+  initMap();
+  carregarBancoDoFirebase();
+  
+  // Conecta o input de arquivo à nossa função Firebase
+  document.getElementById('logo-input').addEventListener('change', handleLogoUpload);
+});
+</script>
+</body>
+</html>
